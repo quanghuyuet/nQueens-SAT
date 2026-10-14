@@ -1,0 +1,16 @@
+timestamp,benchmark,solver,encoding,sat_solver,n,run,threads,shuffle_seed,variables,clauses,build_seconds,solve_seconds,total_seconds,peak_memory_mb,status,error
+2026-10-14T22:49:35,solvers,gurobi,,,31,1,1,,,,0.033653,0.11466,0.611962,29.082031,SAT,
+2026-10-14T22:49:36,solvers,cplex_mip,,,31,1,1,,,,0.025553,0.079335,0.85956,33.324219,SAT,
+2026-10-14T22:49:39,solvers,cplex_cp,,,31,1,1,,,,0.001581,0.080753,2.541017,87.605469,SAT,
+2026-10-14T22:49:39,solvers,gurobi,,,32,1,1,,,,0.019209,0.038594,0.411799,29.109375,SAT,
+2026-10-14T22:49:40,solvers,cplex_mip,,,32,1,1,,,,0.011766,0.000759,0.422416,29.21875,ERROR,CplexSolverError: CPLEX Error  1016: Community Edition. Problem size limits exceeded. Purchase at http://ibm.biz/error1016.
+2026-10-14T22:49:41,solvers,cplex_cp,,,32,1,1,,,,0.001578,0.041744,1.456776,80.40625,SAT,
+2026-10-14T22:49:42,solvers,gurobi,,,44,1,1,,,,0.031419,0.102243,0.487339,32.867188,SAT,
+2026-10-14T22:49:42,solvers,cplex_mip,,,44,1,1,,,,0.016995,0.000293,0.425527,29.207031,ERROR,CplexSolverError: CPLEX Error  1016: Community Edition. Problem size limits exceeded. Purchase at http://ibm.biz/error1016.
+2026-10-14T22:49:44,solvers,cplex_cp,,,44,1,1,,,,0.001683,0.045442,1.708446,80.433594,SAT,
+2026-10-14T22:49:44,solvers,gurobi,,,45,1,1,,,,0.031211,0.000171,0.384756,27.085938,ERROR,GurobiError: Model too large for size-limited license; visit https://gurobi.com/unrestricted for more information
+2026-10-14T22:49:45,solvers,cplex_mip,,,45,1,1,,,,0.017589,0.000331,0.426893,29.1875,ERROR,CplexSolverError: CPLEX Error  1016: Community Edition. Problem size limits exceeded. Purchase at http://ibm.biz/error1016.
+2026-10-14T22:49:46,solvers,cplex_cp,,,45,1,1,,,,0.001756,0.046084,1.437663,80.125,SAT,
+2026-10-14T22:49:47,solvers,gurobi,,,64,1,1,,,,0.05872,0.0002,0.43308,28.328125,ERROR,GurobiError: Model too large for size-limited license; visit https://gurobi.com/unrestricted for more information
+2026-10-14T22:49:47,solvers,cplex_mip,,,64,1,1,,,,0.026855,0.000908,0.432596,29.675781,ERROR,CplexSolverError: CPLEX Error  1016: Community Edition. Problem size limits exceeded. Purchase at http://ibm.biz/error1016.
+2026-10-14T22:49:49,solvers,cplex_cp,,,64,1,1,,,,0.002096,0.048315,1.598529,80.324219,SAT,

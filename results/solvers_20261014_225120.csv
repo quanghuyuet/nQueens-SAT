@@ -1,0 +1,10 @@
+timestamp,benchmark,solver,encoding,sat_solver,n,run,threads,shuffle_seed,variables,clauses,build_seconds,solve_seconds,total_seconds,peak_memory_mb,status,error
+2026-10-14T22:51:22,solvers,cplex_cp,,,128,1,1,,,,0.002679,0.072085,2.001191,89.117188,SAT,
+2026-10-14T22:51:24,solvers,cplex_cp,,,256,1,1,,,,0.005204,0.070336,2.0144,88.808594,ERROR,"CpoSolverException: Solver error: Problem size limit exceeded.
+CP Optimizer Community Edition solves problems with search spaces up to 2^1000.
+Unrestricted version options (including academia) at https://ibm.biz/error1016
+"
+2026-10-14T22:51:26,solvers,cplex_cp,,,512,1,1,,,,0.00735,0.075971,1.616072,90.214844,ERROR,"CpoSolverException: Solver error: Problem size limit exceeded.
+CP Optimizer Community Edition solves problems with search spaces up to 2^1000.
+Unrestricted version options (including academia) at https://ibm.biz/error1016
+"

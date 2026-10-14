@@ -26,7 +26,10 @@ nQueens-SAT-main/
 ├── benchmark/                 # Chương trình đo hiệu năng
 │   ├── benchmark_sat.py        # So sánh encoding SAT bằng Glucose3
 │   ├── benchmark_solvers.py    # So sánh 5 phương pháp giải
-│   └── common.py               # Process, timeout, đo thời gian, in bảng
+│   ├── common.py               # Process riêng, timeout, giới hạn RAM, tham số dòng lệnh
+│   ├── verify.py               # Kiểm tra nghiệm N-Queens hợp lệ
+│   ├── csv_log.py              # Ghi kết quả ra file CSV
+│   └── tables.py               # In bảng kết quả và bảng median
 ├── results/                   # Kết quả thực nghiệm
 │   ├── .gitkeep               # Giữ thư mục trong Git
 │   └── sat_encoding_selection.txt
@@ -128,20 +131,53 @@ mô hình. Có thể đổi bằng `--timeout`.
 | Build | Tạo biến, ràng buộc, objective hoặc CNF; Gurobi bao gồm `model.update()` |
 | Solve | Thời gian gọi API solve/optimize, bao gồm presolve |
 | Total | Từ lúc khởi động process tới khi nhận kết quả hoặc hết deadline |
-| Status | `SAT`, `UNSAT`, `TIMEOUT` hoặc `ERROR` |
+| Mem(MB) | Bộ nhớ cao nhất của worker và các process solver con, lấy mẫu mỗi 0,05 giây (test rất ngắn có thể bị đo thấp hơn thực tế) |
+| Status | `SAT`, `UNSAT`, `INVALID`, `TIMEOUT`, `MEMOUT` hoặc `ERROR` |
 | Vars / Clauses | Chỉ có trong benchmark SAT, tính cả biến phụ |
 
 Tất cả thời gian tính bằng giây. `Total` còn bao gồm import, thiết lập solver,
 license, khởi tạo môi trường/container MIP, nạp CNF và truyền kết quả;
 vì vậy có thể lớn hơn `Build + Solve`. Với CP Optimizer, thời gian Solve
 bao gồm chuyển mô hình sang CPO, khởi động runtime và lấy kết quả.
-Benchmark chỉ lấy trạng thái, không đo chuyển nghiệm thành ma trận hay in bàn cờ.
+Việc chuyển nghiệm thành ma trận và kiểm tra nghiệm được làm sau khi đo xong
+Build và Solve, nên không tính vào hai cột đó.
+
+### Kiểm tra nghiệm
+
+Mọi kết quả `SAT` đều đã được kiểm tra: đúng N hậu, không có hai hậu cùng hàng,
+cột hoặc đường chéo. Nếu nghiệm sai, hoặc solver báo vô nghiệm với N có nghiệm
+(mọi N trừ 2 và 3), trạng thái là `INVALID` kèm lý do trong cột `error`.
+
+### Bộ nhớ, số luồng và chạy lặp
+
+| Tham số | Tác dụng |
+| --- | --- |
+| `--memory-limit-mb 8192` | Dừng test với trạng thái `MEMOUT` khi worker và process con dùng quá mức này. Mặc định không giới hạn. Worker bị hệ điều hành kill bằng SIGKILL (Linux) hoặc `MemoryError` cũng được báo `MEMOUT` |
+| `--threads 1` | Số luồng cho CP-SAT, Gurobi, CPLEX MIP, CPLEX CP (mặc định 1). SAT solver luôn chạy một luồng. Chỉ có trong `benchmark_solvers` |
+| `--repeats 5` | Chạy mỗi cặp (solver, N) nhiều lần, rồi in bảng median. Median chỉ tính trên các lần chạy xong (`SAT`/`UNSAT`) |
+| `--shuffle` | Chỉ có trong `benchmark_sat`. Xáo thứ tự clause với seed bằng số thứ tự lần chạy. Glucose3 chạy lại cùng một CNF cho kết quả giống nhau, nên cần `--shuffle` thì `--repeats` mới có ý nghĩa thống kê cho SAT |
+| `--output file.csv` | Ghi kết quả vào file CSV này (nối thêm nếu file đã có) |
+
+```powershell
+python -m benchmark.benchmark_sat --sizes 8 16 32 64 --repeats 5 --shuffle --memory-limit-mb 8192
+python -m benchmark.benchmark_solvers --sizes 8 16 32 64 128 256 512 --threads 1 --memory-limit-mb 8192
+```
+
+### Kết quả CSV
+
+Mỗi test ghi một dòng vào CSV ngay khi xong, nên Ctrl+C hoặc lỗi giữa chừng không
+làm mất kết quả đã có. Nếu không có `--output`, file là
+`results/sat_encodings_<ngày>_<giờ>.csv` hoặc `results/solvers_<ngày>_<giờ>.csv`.
+
+Cột: `timestamp, benchmark, solver, encoding, sat_solver, n, run, threads,
+shuffle_seed, variables, clauses, build_seconds, solve_seconds, total_seconds,
+peak_memory_mb, status, error`. Thời gian tính bằng giây, `peak_memory_mb` tính
+bằng MB; ô trống nghĩa là chưa tới hoặc không có giá trị.
 
 `--` nghĩa là chưa tới hoặc chưa hoàn tất giai đoạn đo. Nếu một giai đoạn lỗi,
 thời gian đã chạy trong giai đoạn đó vẫn được ghi. Thiếu thư viện, lỗi license
 hoặc runtime được báo `ERROR` kèm nguyên nhân; các test còn lại tiếp tục chạy.
-Khi timeout, worker và các process native con được dừng. Bảng chỉ in ra terminal,
-chưa xuất CSV.
+Khi timeout, worker và các process native con được dừng.
 
 ### Encoding SAT đại diện
 

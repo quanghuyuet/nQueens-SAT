@@ -34,11 +34,16 @@ def build_model(n):
     return model, queens
 
 
-def solve_model(model):
-    """Solve a built model using the same local runtime configuration."""
+def solve_model(model, workers=None):
+    """Solve a built model using the same local runtime configuration.
+
+    workers: number of CP Optimizer worker threads (None = solver default).
+    """
 
     # Use the local runtime; an explicit path can override normal discovery.
     solve_options = {"agent": "local", "LogVerbosity": "Quiet"}
+    if workers is not None:
+        solve_options["Workers"] = workers
     executable = os.environ.get("DOCPLEX_CP_EXECUTABLE")
     if executable:
         solve_options["execfile"] = executable

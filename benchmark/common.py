@@ -1,9 +1,10 @@
-"""Process isolation, timings, deadlines, and tables shared by benchmarks."""
+"""Process isolation, timeouts, memory limits and command-line options shared by benchmarks."""
 
 import argparse
 import math
 import multiprocessing
 from contextlib import contextmanager
+from pathlib import Path
 from time import perf_counter
 
 import psutil
@@ -11,6 +12,8 @@ import psutil
 
 BOARD_SIZES = (8, 16, 32, 64, 128, 256, 512)
 TIMEOUT_SECONDS = 120.0
+DEFAULT_THREADS = 1
+POLL_SECONDS = 0.05  # how often the parent samples memory while waiting
 
 
 @contextmanager
@@ -26,10 +29,28 @@ def measure_time(connection, key):
 def _worker_entry(worker, arguments, connection):
     try:
         worker(*arguments, connection)
+    except MemoryError:
+        connection.send({"status": "MEMOUT", "error": "MemoryError inside the worker"})
     except Exception as error:
         connection.send({"status": "ERROR", "error": f"{type(error).__name__}: {error}"})
     finally:
         connection.close()
+
+
+def _tree_rss_mb(process):
+    """Resident memory (MB) of the worker plus its native solver children."""
+    try:
+        parent = psutil.Process(process.pid)
+        processes = [parent] + parent.children(recursive=True)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return None
+    total = 0
+    for item in processes:
+        try:
+            total += item.memory_info().rss
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    return total / (1024 * 1024)
 
 
 def _stop_process(process):
@@ -57,11 +78,15 @@ def _stop_process(process):
         raise RuntimeError(f"Could not stop solver processes: {[p.pid for p in alive]}")
 
 
-def run_process(worker, name, n, timeout=TIMEOUT_SECONDS, worker_args=()):
+def run_process(worker, name, n, timeout=TIMEOUT_SECONDS, worker_args=(),
+                memory_limit_mb=None):
     """Run worker(name, n, *worker_args, connection) under one total deadline.
 
     Workers send small dictionaries as stages finish; models remain in the child.
     The deadline includes process startup, imports, construction, and solving.
+    The parent samples the worker's memory every POLL_SECONDS. If it exceeds
+    memory_limit_mb the test is stopped with status MEMOUT. A worker killed by
+    SIGKILL (the Linux out-of-memory killer) is also reported as MEMOUT.
     """
     positive_integer(n)
     positive_seconds(timeout)
@@ -72,7 +97,7 @@ def run_process(worker, name, n, timeout=TIMEOUT_SECONDS, worker_args=()):
     )
     result = {
         "name": name, "n": n, "variables": None, "clauses": None,
-        "build_seconds": None, "solve_seconds": None,
+        "build_seconds": None, "solve_seconds": None, "peak_memory_mb": None,
     }
     started = perf_counter()
     try:
@@ -84,17 +109,35 @@ def run_process(worker, name, n, timeout=TIMEOUT_SECONDS, worker_args=()):
             if remaining <= 0:
                 result["status"] = "TIMEOUT"
                 break
-            if receiver.poll(remaining):
+            if receiver.poll(min(remaining, POLL_SECONDS)):
                 try:
                     result.update(receiver.recv())
                 except EOFError:
-                    result.update(status="ERROR", error="Worker exited without a result")
+                    process.join(timeout=1)
+                    if process.exitcode == -9:
+                        result.update(
+                            status="MEMOUT",
+                            error="Worker was killed (SIGKILL), probably out of memory")
+                    else:
+                        result.update(
+                            status="ERROR",
+                            error=f"Worker exited without a result (exit code {process.exitcode})")
+            rss = _tree_rss_mb(process)
+            if rss is not None:
+                peak = result["peak_memory_mb"]
+                result["peak_memory_mb"] = rss if peak is None else max(peak, rss)
+                if (memory_limit_mb is not None and rss > memory_limit_mb
+                        and "status" not in result):
+                    result.update(
+                        status="MEMOUT",
+                        error=f"Memory limit of {memory_limit_mb:g} MB exceeded")
     except Exception as error:
         result.update(status="ERROR", error=f"{type(error).__name__}: {error}")
     finally:
         result["total_seconds"] = perf_counter() - started
         if process.pid is not None:
-            process.join(timeout=0 if result.get("status") == "TIMEOUT" else 0.1)
+            stopping = result.get("status") in ("TIMEOUT", "MEMOUT")
+            process.join(timeout=0 if stopping else 0.1)
             try:
                 _stop_process(process)
             except Exception as error:
@@ -104,6 +147,10 @@ def run_process(worker, name, n, timeout=TIMEOUT_SECONDS, worker_args=()):
         receiver.close()
     return result
 
+
+# --------------------------------------------------------------------------
+# Command line
+# --------------------------------------------------------------------------
 
 def positive_integer(value):
     number = int(value)
@@ -119,43 +166,19 @@ def positive_seconds(value):
     return number
 
 
-def add_run_arguments(parser):
+def add_run_arguments(parser, threads=True):
     parser.add_argument("--sizes", nargs="+", type=positive_integer, default=BOARD_SIZES)
     parser.add_argument("--timeout", type=positive_seconds, default=TIMEOUT_SECONDS,
                         help="total wall-clock limit per test (default: 120 seconds)")
-
-
-def _number(value):
-    return "--" if value is None else f"{value:,}"
-
-
-def _seconds(value):
-    return "--" if value is None else f"{value:.4f}"
-
-
-def print_header(title, timeout, include_counts=False):
-    print(f"{title} | timeout: {timeout:g} s/test", flush=True)
-    print("Build = model/CNF construction; Solve = solve API call (including presolve).")
-    print("Total includes startup, imports, solver setup, CNF loading and communication.")
-    if not include_counts:
-        print("CP solve includes model serialization and CP Optimizer process startup.")
-    print("-- = stage not reached/unfinished; times are in seconds.\n", flush=True)
-    counts = f" {'Vars':>9} {'Clauses':>11}" if include_counts else ""
-    header = (f"{'Encoding' if include_counts else 'Solver':<25} {'N':>5}{counts} "
-              f"{'Build':>9} {'Solve':>9} {'Total':>9} {'Status':<7}")
-    print(header)
-    print("-" * len(header), flush=True)
-
-
-def print_result(result, include_counts=False):
-    counts = (f" {_number(result['variables']):>9} {_number(result['clauses']):>11}"
-              if include_counts else "")
-    print(
-        f"{result['name']:<25} {result['n']:>5}{counts} "
-        f"{_seconds(result['build_seconds']):>9} "
-        f"{_seconds(result['solve_seconds']):>9} "
-        f"{_seconds(result['total_seconds']):>9} {result['status']:<7}",
-        flush=True,
-    )
-    if "error" in result:
-        print(f"  {result['error']}", flush=True)
+    parser.add_argument("--repeats", type=positive_integer, default=1,
+                        help="runs per (solver, N); a median table is printed when > 1")
+    parser.add_argument("--memory-limit-mb", type=positive_seconds, default=None,
+                        help="stop a test with status MEMOUT above this memory "
+                             "(worker + child processes); default: no limit")
+    parser.add_argument("--output", type=Path, default=None,
+                        help="CSV file to append results to "
+                             "(default: results/<benchmark>_<timestamp>.csv)")
+    if threads:
+        parser.add_argument("--threads", type=positive_integer, default=DEFAULT_THREADS,
+                            help="threads for CP-SAT, Gurobi, CPLEX MIP and CPLEX CP "
+                                 "(default: 1; the SAT solver is single-threaded)")

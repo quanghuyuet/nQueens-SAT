@@ -1,0 +1,6 @@
+timestamp,benchmark,solver,encoding,sat_solver,n,run,threads,shuffle_seed,variables,clauses,build_seconds,solve_seconds,total_seconds,peak_memory_mb,status,error
+2026-10-14T22:46:17,solvers,sat,commander,Glucose3,8,1,1,,,,0.000677,0.000634,0.426375,21.546875,SAT,
+2026-10-14T22:46:31,solvers,cp_sat,,,8,1,1,,,,0.011194,0.260288,13.675617,83.296875,SAT,
+2026-10-14T22:46:32,solvers,gurobi,,,8,1,1,,,,0.019262,0.01034,0.79948,26.4375,SAT,
+2026-10-14T22:46:33,solvers,cplex_mip,,,8,1,1,,,,0.015494,0.057002,0.858191,30.722656,SAT,
+2026-10-14T22:46:38,solvers,cplex_cp,,,8,1,1,,,,0.001802,1.234839,5.169131,86.207031,SAT,

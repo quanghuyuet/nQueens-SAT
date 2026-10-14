@@ -1,0 +1,6 @@
+timestamp,benchmark,solver,encoding,sat_solver,n,run,threads,shuffle_seed,variables,clauses,build_seconds,solve_seconds,total_seconds,peak_memory_mb,status,error
+2026-10-14T16:28:04,sat_encodings,sat,binomial,Glucose3,8,1,1,,64,744,0.000835,0.000725,0.852213,21.175781,SAT,
+2026-10-14T16:28:04,sat_encodings,sat,binary,Glucose3,8,1,1,,174,728,0.000528,0.000264,0.647512,21.386719,SAT,
+2026-10-14T16:28:05,sat_encodings,sat,commander,Glucose3,8,1,1,,140,694,0.000746,0.000247,0.596796,21.40625,SAT,
+2026-10-14T16:28:06,sat_encodings,sat,product,Glucose3,8,1,1,,280,704,0.000705,0.000359,0.658543,21.476562,SAT,
+2026-10-14T16:28:06,sat_encodings,sat,sequential,Glucose3,8,1,1,,274,604,0.000366,0.000203,0.569901,21.519531,SAT,
