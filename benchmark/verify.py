@@ -1,5 +1,3 @@
-"""Check that a solver's answer is a valid N-Queens placement."""
-
 
 def has_solution(n):
     """N-Queens is solvable for every N except 2 and 3."""

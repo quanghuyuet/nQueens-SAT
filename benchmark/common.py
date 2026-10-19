@@ -1,4 +1,3 @@
-"""Process isolation, timeouts, memory limits and command-line options shared by benchmarks."""
 
 import argparse
 import math
@@ -18,7 +17,6 @@ POLL_SECONDS = 0.05  # how often the parent samples memory while waiting
 
 @contextmanager
 def measure_time(connection, key):
-    """Report elapsed seconds, including time spent in a failing stage."""
     started = perf_counter()
     try:
         yield
@@ -80,14 +78,7 @@ def _stop_process(process):
 
 def run_process(worker, name, n, timeout=TIMEOUT_SECONDS, worker_args=(),
                 memory_limit_mb=None):
-    """Run worker(name, n, *worker_args, connection) under one total deadline.
 
-    Workers send small dictionaries as stages finish; models remain in the child.
-    The deadline includes process startup, imports, construction, and solving.
-    The parent samples the worker's memory every POLL_SECONDS. If it exceeds
-    memory_limit_mb the test is stopped with status MEMOUT. A worker killed by
-    SIGKILL (the Linux out-of-memory killer) is also reported as MEMOUT.
-    """
     positive_integer(n)
     positive_seconds(timeout)
     context = multiprocessing.get_context("spawn")
